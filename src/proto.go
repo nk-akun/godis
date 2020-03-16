@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"log"
 
 	"github.com/nk-akun/godis/src/util/bufio2"
 )
@@ -34,7 +33,7 @@ func EncodeCmd(content string) (b []byte, err error) {
 func EncodeBytes(bytesContent []byte) (re []byte, err error) {
 	chunks := bytes.Split(bytesContent, []byte(" "))
 	if chunks == nil {
-		return nil, errorTrace(errorNew("result of split is nil"))
+		return nil, errorNew("result of split is nil")
 	}
 
 	r := NewMultiBulk(nil)
@@ -86,13 +85,6 @@ func NewBulk(data []byte) *EncodeData {
 	return ans
 }
 
-func errorTrace(err error) error {
-	if err != nil {
-		log.Println("error tracing: ", err.Error())
-	}
-	return err
-}
-
 func errorNew(errorMsg string) error {
 	return errors.New("error: " + errorMsg)
 }
@@ -119,9 +111,22 @@ func (e *Encoder) encodeData(r *EncodeData) error {
 		return err
 	}
 
-	// switch r.Type {
-	// case :
+	switch r.Type {
+	case TypeStatus, TypeError, TypeInt:
+		return e.encodeTextBytes(r.Value)
 
-	// }
+	}
+	return nil
+}
+
+func (e *Encoder) encodeTextBytes(value []byte) error {
+	if n, err := e.ByteWriter.WriteBytes(value); n != len(value) || err != nil {
+		log.Errorf("encode bytes: %v", err)
+		return err
+	}
+	if n, err := e.ByteWriter.WriteBytes([]byte("\r\n")); n != 2 || err != nil {
+		log.Errorf("encode bytes: %v", err)
+		return err
+	}
 	return nil
 }

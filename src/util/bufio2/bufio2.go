@@ -51,6 +51,31 @@ func (w *Writer) WriteByte(b byte) error {
 	return nil
 }
 
+// WriteBytes is the func to write []byte into buf or io.writer
+func (w *Writer) WriteBytes(value []byte) (wn int, err error) {
+	var n int
+
+	for w.err != nil && w.free() < len(value) {
+		if w.rpos == 0 {
+			n, w.err = w.writer.Write(value)
+		} else { //make sure that the bytes stored in buf could be writen first
+			n = copy(w.buf[w.rpos:], value)
+			w.rpos += n
+			w.err = w.Flush()
+		}
+		value = value[n:]
+		wn += n
+	}
+
+	if len(value) == 0 || w.err != nil {
+		return wn, w.err
+	}
+
+	n = copy(w.buf[w.rpos:], value)
+	w.rpos += n
+	return wn + n, nil
+}
+
 func (w *Writer) free() int {
 	return len(w.buf) - w.rpos
 }

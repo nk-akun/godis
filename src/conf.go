@@ -7,14 +7,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GodisConfig stores godis's config
 type GodisConfig struct {
 	OutputToTerminal bool
 	LogDir           string
 	*viper.Viper
 }
 
-var GodisConf *GodisConfig
+var godisConf *GodisConfig
 
+// GetConf is used by a function outside the package to get the configuration
+func GetConf() *GodisConfig {
+	return godisConf
+}
+
+// ParseConf parses config whose format is toml
 func ParseConf() {
 	v := viper.New()
 
@@ -31,11 +38,11 @@ func ParseConf() {
 	v.SetDefault("OutputToTerminal", true)
 	v.SetDefault("LogDir", "./log/")
 
-	GodisConf = &GodisConfig{}
-	if err := v.Unmarshal(GodisConf); err != nil {
+	godisConf = &GodisConfig{}
+	if err := v.Unmarshal(godisConf); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to unmarshal config :%v", err)
 		os.Exit(-1)
 	}
 
-	GodisConf.Viper = v
+	godisConf.Viper = v
 }
