@@ -1,0 +1,2 @@
+OutputToTerminal = true
+LogDir = "./log"

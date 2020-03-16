@@ -119,8 +119,9 @@ func (e *Encoder) encodeData(r *EncodeData) error {
 		return err
 	}
 
-	switch r.Type {
-	case condition:
+	// switch r.Type {
+	// case :
 
-	}
+	// }
+	return nil
 }
