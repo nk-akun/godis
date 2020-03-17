@@ -55,7 +55,7 @@ func (w *Writer) WriteByte(b byte) error {
 func (w *Writer) WriteBytes(value []byte) (wn int, err error) {
 	var n int
 
-	for w.err != nil && w.free() < len(value) {
+	for w.err == nil && w.free() < len(value) {
 		if w.rpos == 0 {
 			n, w.err = w.writer.Write(value)
 		} else { //make sure that the bytes stored in buf could be writen first
@@ -72,6 +72,30 @@ func (w *Writer) WriteBytes(value []byte) (wn int, err error) {
 	}
 
 	n = copy(w.buf[w.rpos:], value)
+	w.rpos += n
+	return wn + n, nil
+}
+
+// WriteString is the func to write string into buf or io.writer
+func (w *Writer) WriteString(str string) (wn int, err error) {
+	var n int
+	for w.err == nil && w.free() < len(str) {
+		if w.rpos == 0 {
+			n, w.err = w.writer.Write([]byte(str))
+		} else {
+			n = copy(w.buf[w.rpos:], str)
+			w.rpos += n
+			w.err = w.Flush()
+		}
+		str = str[n:]
+		wn += n
+	}
+
+	if len(str) == 0 || w.err != nil {
+		return wn, err
+	}
+
+	n = copy(w.buf[w.rpos:], str)
 	w.rpos += n
 	return wn + n, nil
 }

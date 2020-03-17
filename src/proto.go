@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 
 	"github.com/nk-akun/godis/src/util/bufio2"
 )
@@ -107,6 +108,7 @@ func (e *Encoder) Encode(r *EncodeData, flush bool) error {
 
 func (e *Encoder) encodeData(r *EncodeData) error {
 	if err := e.ByteWriter.WriteByte(byte(r.Type)); err != nil {
+		log.Errorf("encode data: %v", err)
 		e.Err = err
 		return err
 	}
@@ -114,19 +116,57 @@ func (e *Encoder) encodeData(r *EncodeData) error {
 	switch r.Type {
 	case TypeStatus, TypeError, TypeInt:
 		return e.encodeTextBytes(r.Value)
-
+	case TypeBulk:
+		return e.encodeBulkBytes(r.Value)
+	case TypeMultiBulk:
+		return e.encodeMultiBulkArray(r.Array)
 	}
 	return nil
 }
 
 func (e *Encoder) encodeTextBytes(value []byte) error {
 	if n, err := e.ByteWriter.WriteBytes(value); n != len(value) || err != nil {
-		log.Errorf("encode bytes: %v", err)
 		return err
 	}
 	if n, err := e.ByteWriter.WriteBytes([]byte("\r\n")); n != 2 || err != nil {
-		log.Errorf("encode bytes: %v", err)
 		return err
+	}
+	return nil
+}
+
+func (e *Encoder) encodeTextString(str string) error {
+	if n, err := e.ByteWriter.WriteString(str); n != len(str) || err != nil {
+		return err
+	}
+	if n, err := e.ByteWriter.WriteString("\r\n"); n != 2 || err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Encoder) encodeInt(v int64) error {
+	return e.encodeTextString(strconv.FormatInt(v, 10))
+}
+
+func (e *Encoder) encodeBulkBytes(value []byte) error {
+	if err := e.encodeInt(int64(len(value))); err != nil {
+		return err
+	}
+
+	return e.encodeTextBytes(value)
+}
+
+func (e *Encoder) encodeMultiBulkArray(bulks []*EncodeData) error {
+	if len(bulks) == 0 {
+		return e.encodeInt(-1)
+	}
+	if err := e.encodeInt(int64(len(bulks))); err != nil {
+		return err
+	}
+	for _, bulk := range bulks {
+		if err := e.encodeData(bulk); err != nil {
+			return err
+		}
 	}
 	return nil
 }
