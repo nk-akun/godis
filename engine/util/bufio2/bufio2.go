@@ -103,3 +103,62 @@ func (w *Writer) WriteString(str string) (wn int, err error) {
 func (w *Writer) free() int {
 	return len(w.buf) - w.rpos
 }
+
+// Reader contains io.Reader and buf ect.
+type Reader struct {
+	reader io.Reader
+	buf    []byte
+	lpos   int
+	rpos   int
+	err    error
+}
+
+// NewReaderSize return Reader pointer
+func NewReaderSize(reader io.Reader, size int) *Reader {
+	if size < 0 {
+		size = 2014
+	}
+	return &Reader{
+		reader: reader,
+		buf:    make([]byte, size),
+		lpos:   0,
+		rpos:   0,
+	}
+}
+
+// GlanceByte return first byte of buf
+func (r *Reader) GlanceByte() (byte, error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+	if r.bufferLen() == 0 && r.fillBuf() != nil {
+		return 0, r.err
+	}
+	return r.buf[r.lpos], nil
+}
+
+// bufferLen return valid length of buf
+func (r *Reader) bufferLen() int {
+	return r.rpos - r.lpos
+}
+
+func (r *Reader) fillBuf() error {
+	if r.err != nil {
+		return r.err
+	}
+
+	//move the existing data to the front
+	n := copy(r.buf, r.buf[r.lpos:r.rpos])
+	r.lpos = 0
+	r.rpos = n
+
+	n, err := r.reader.Read(r.buf[r.rpos:])
+	if err != nil {
+		r.err = err
+	} else if n == 0 {
+		r.err = io.ErrNoProgress
+	} else {
+		r.rpos += n
+	}
+	return r.err
+}

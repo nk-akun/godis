@@ -6,7 +6,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/nk-akun/godis/src/util/bufio2"
+	"github.com/nk-akun/godis/engine/util/bufio2"
 )
 
 const (
@@ -169,4 +169,30 @@ func (e *Encoder) encodeMultiBulkArray(bulks []*EncodeData) error {
 		}
 	}
 	return nil
+}
+
+// Decoder ...
+type Decoder struct {
+	ByteReader *bufio2.Reader
+	Err        error
+}
+
+// NewDecoder generate a decoder
+func NewDecoder(reader io.Reader) *Decoder {
+	return &Decoder{ByteReader: bufio2.NewReaderSize(reader, 4096)}
+}
+
+// DecodeMultiBulks decode multibulks into several parts
+// for example,*3\r\n$3\r\nset\r\n$3\r\nnum\r\n$1\r\n5\r\n ---> set num 5
+func (d *Decoder) DecodeMultiBulks() ([]*EncodeData, error) {
+	result, err := d.decodeMultiBulks()
+	if err != nil {
+		d.Err = err
+		return nil, err
+	}
+	return result, nil
+}
+
+func (d *Decoder) decodeMultiBulks() ([]*EncodeData, error) {
+	t, err := d.ByteReader.GlanceByte()
 }

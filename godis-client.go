@@ -7,11 +7,11 @@ import (
 	"os"
 	"strings"
 
-	godis "github.com/nk-akun/godis/src"
+	godis "github.com/nk-akun/godis/engine"
 )
 
 func main() {
-	addr := "127.0.0.1:10086"
+	addr := "127.0.0.1:10010"
 
 	reader := bufio.NewReader(os.Stdin)
 
