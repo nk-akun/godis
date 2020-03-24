@@ -1,6 +1,10 @@
 package bufio2
 
-import "io"
+import (
+	"bufio"
+	"bytes"
+	"io"
+)
 
 // Writer is the struct contains the io.Writer and a buffer data
 type Writer struct {
@@ -135,6 +139,47 @@ func (r *Reader) GlanceByte() (byte, error) {
 		return 0, r.err
 	}
 	return r.buf[r.lpos], nil
+}
+
+// ReadByte return first byte of buf and move the lpos
+func (r *Reader) ReadByte() (byte, error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+	if r.bufferLen() == 0 && r.fillBuf() != nil {
+		return 0, r.err
+	}
+	b := r.buf[r.lpos]
+	r.lpos++
+	return b, nil
+}
+
+// ReadBytesDelim return bytes from r.buf[r.lpos] to delim in r.buf
+func (r *Reader) ReadBytesDelim(delim byte) ([]byte, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	for {
+		pos := bytes.IndexByte(r.buf[r.lpos:r.rpos], delim)
+		if pos > 0 {
+			newLpos := r.lpos + pos + 1
+			ans := r.buf[r.lpos:newLpos]
+			r.lpos = newLpos
+			return ans, nil
+		}
+		if r.bufferLen() == len(r.buf) { // can't find the delim though r.buf is full
+			r.lpos = r.rpos
+			return r.buf, bufio.ErrBufferFull
+		}
+		if r.fillBuf() != nil {
+			return nil, r.err
+		}
+	}
+}
+
+// ReadBytesLen read bytes length is l from r.lpos
+func (r *Reader) ReadBytesLen(l int) {
+
 }
 
 // bufferLen return valid length of buf

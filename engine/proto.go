@@ -195,4 +195,69 @@ func (d *Decoder) DecodeMultiBulks() ([]*EncodeData, error) {
 
 func (d *Decoder) decodeMultiBulks() ([]*EncodeData, error) {
 	t, err := d.ByteReader.GlanceByte()
+	if err != nil {
+		return nil, err
+	}
+	if byte(t) != TypeMultiBulk {
+		return nil, errorNew("command format error!")
+	}
+
+	if _, err := d.ByteReader.ReadByte(); err != nil {
+		return nil, err
+	}
+
+	n, err := d.decodeInt()
+	if err != nil {
+		log.Errorf("decode int err:%v", err)
+		return nil, err
+	}
+
+	bulks := make([]*EncodeData, n)
+	for i := range bulks {
+		bulk := d.decodeData()
+	}
+}
+
+func (d *Decoder) decodeData() (*EncodeData, error) {
+	t, err := d.ByteReader.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	e := &EncodeData{}
+	e.Type = byte(t)
+
+	switch e.Type {
+	case TypeStatus, TypeError, TypeInt:
+		e.Value, err = d.decodeTextBytes()
+	case TypeBulk:
+		e.Value, err = d.decodeBulkBytes()
+	case TypeMultiBulk:
+		e.Array, err = d.decodeMultiBulkArray()
+	}
+}
+
+func (d *Decoder) decodeTextBytes() ([]byte, error) {
+	b, err := d.ByteReader.ReadBytesDelim('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	return b[:len(b)-2], err
+}
+
+func (d *Decoder) decodeBulkBytes() ([]byte, error) {
+	n, err := d.decodeInt()
+	if err != nil {
+		return nil, err
+	}
+	b := d.ByteReader.ReadBytesLen(n + 2)
+}
+
+func (d *Decoder) decodeInt() (int64, error) {
+	num, err := d.ByteReader.ReadBytesDelim('\n')
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.ParseInt(string(num), 10, 64)
 }
