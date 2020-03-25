@@ -177,9 +177,20 @@ func (r *Reader) ReadBytesDelim(delim byte) ([]byte, error) {
 	}
 }
 
-// ReadBytesLen read bytes length is l from r.lpos
-func (r *Reader) ReadBytesLen(l int) {
-
+// ReadBytesLen read bytes which length is n from r.lpos
+func (r *Reader) ReadBytesLen(n int) ([]byte, error) {
+	re := make([]byte, n)
+	for l := 0; l < n; {
+		if length := r.bufferLen(); length >= (n-l) || length == len(r.buf) {
+			tmp := copy(re[l:], r.buf[r.lpos:])
+			l += tmp
+			r.lpos += tmp
+		}
+		if err := r.fillBuf(); err != nil {
+			return nil, err
+		}
+	}
+	return re, nil
 }
 
 // bufferLen return valid length of buf

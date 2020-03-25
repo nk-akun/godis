@@ -179,7 +179,7 @@ type Decoder struct {
 
 // NewDecoder generate a decoder
 func NewDecoder(reader io.Reader) *Decoder {
-	return &Decoder{ByteReader: bufio2.NewReaderSize(reader, 4096)}
+	return &Decoder{ByteReader: bufio2.NewReaderSize(reader, 2048)}
 }
 
 // DecodeMultiBulks decode multibulks into several parts
@@ -214,8 +214,17 @@ func (d *Decoder) decodeMultiBulks() ([]*EncodeData, error) {
 
 	bulks := make([]*EncodeData, n)
 	for i := range bulks {
-		bulk := d.decodeData()
+		bulk, err := d.decodeData()
+		if err != nil {
+			return nil, err
+		}
+		if bulk.Type != TypeBulk {
+			log.Errorf("bad bulk content,should be bulkBytes")
+			return nil, errorNew("bad bulk content")
+		}
+		bulks[i] = bulk
 	}
+	return bulks, nil
 }
 
 func (d *Decoder) decodeData() (*EncodeData, error) {
@@ -234,6 +243,7 @@ func (d *Decoder) decodeData() (*EncodeData, error) {
 	case TypeMultiBulk:
 		e.Array, err = d.decodeMultiBulkArray()
 	}
+	return e, err
 }
 
 func (d *Decoder) decodeTextBytes() ([]byte, error) {
@@ -250,7 +260,27 @@ func (d *Decoder) decodeBulkBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := d.ByteReader.ReadBytesLen(n + 2)
+	b, err := d.ByteReader.ReadBytesLen(int(n) + 2)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+
+func (d *Decoder) decodeMultiBulkArray() ([]*EncodeData, error) {
+	n, err := d.decodeInt()
+	if err != nil {
+		return nil, err
+	}
+	bulks := make([]*EncodeData, n)
+	for i := range bulks {
+		bulk, err := d.decodeData()
+		if err != nil {
+			return nil, err
+		}
+		bulks[i] = bulk
+	}
+	return bulks, nil
 }
 
 func (d *Decoder) decodeInt() (int64, error) {

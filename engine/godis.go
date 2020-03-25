@@ -24,7 +24,7 @@ func (s *Server) CreateClient() *Client {
 // ReadClientContent read command from client
 func (c *Client) ReadClientContent(conn net.Conn) error {
 
-	buf := make([]byte, 1024)
+	buf := make([]byte, 10240)
 	_, err := conn.Read(buf)
 	if err != nil {
 		log.Errorf("read client %+v cmd err:%+v", conn, err)
