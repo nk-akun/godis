@@ -8,6 +8,8 @@ import (
 // Client stores client info
 type Client struct {
 	CmdBuf string
+	Argc   int
+	Argv   *[]GodisObject
 }
 
 // Server stores server info
@@ -38,4 +40,11 @@ func (c *Client) ReadClientContent(conn net.Conn) error {
 func (c *Client) TransClientContent() error {
 	decoder := NewDecoder(bytes.NewReader([]byte(c.CmdBuf)))
 	bulks, err := decoder.DecodeMultiBulks()
+	if err != nil {
+		log.Errorf("translate command error:%v", err)
+		return err
+	}
+	for i, bulk := range bulks {
+
+	}
 }
