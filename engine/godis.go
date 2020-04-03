@@ -9,7 +9,7 @@ import (
 type Client struct {
 	CmdBuf string
 	Argc   int
-	Argv   *[]GodisObject
+	Argv   []*Object
 }
 
 // Server stores server info
@@ -30,6 +30,7 @@ func (c *Client) ReadClientContent(conn net.Conn) error {
 	_, err := conn.Read(buf)
 	if err != nil {
 		log.Errorf("read client %+v cmd err:%+v", conn, err)
+		conn.Close()
 		return err
 	}
 	c.CmdBuf = string(buf)
@@ -39,12 +40,18 @@ func (c *Client) ReadClientContent(conn net.Conn) error {
 // TransClientContent convert the content from client into parameters
 func (c *Client) TransClientContent() error {
 	decoder := NewDecoder(bytes.NewReader([]byte(c.CmdBuf)))
+	log.Info(c.CmdBuf)
 	bulks, err := decoder.DecodeMultiBulks()
 	if err != nil {
 		log.Errorf("translate command error:%v", err)
 		return err
 	}
-	for i, bulk := range bulks {
 
+	c.Argc = len(bulks)
+	c.Argv = make([]*Object, c.Argc)
+
+	for i, bulk := range bulks {
+		c.Argv[i] = NewObject(OBJString, string(bulk.Value))
 	}
+	return nil
 }

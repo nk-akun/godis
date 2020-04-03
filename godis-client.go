@@ -32,6 +32,10 @@ func main() {
 		content = strings.Replace(content, "\n", "", -1)
 
 		sendToServer(conn, content)
+
+		buff := make([]byte, 1024)
+		conn.Read(buff)
+		fmt.Println(string(buff))
 	}
 }
 

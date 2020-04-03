@@ -9,6 +9,9 @@ type Object struct {
 const OBJString = 0
 const OBJInt = 1
 const OBJSet = 2
+const OBJZset = 3
+const OBJHash = 4
+const OBJList = 5
 
 // NewObject return a new Object
 func NewObject(tp int, ptr interface{}) *Object {

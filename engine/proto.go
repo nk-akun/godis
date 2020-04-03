@@ -289,5 +289,5 @@ func (d *Decoder) decodeInt() (int64, error) {
 		return 0, err
 	}
 
-	return strconv.ParseInt(string(num), 10, 64)
+	return strconv.ParseInt(string(num[:(len(num)-2)]), 10, 64)
 }
