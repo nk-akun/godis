@@ -61,6 +61,8 @@ func (sds *Sdshdr) SdsClear() {
 	sds.len = 0
 }
 
+//TODO: Optimize join performance
+
 // SdsCat appends str to end of buf
 func (sds *Sdshdr) SdsCat(str *string) {
 	l := len(*str)
