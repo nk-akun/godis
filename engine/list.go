@@ -99,6 +99,7 @@ func (l *List) InsertNode(oldNode *ListNode, v *Object, after bool) {
 	if node.next != nil {
 		node.next.prev = node
 	}
+	l.length++
 }
 
 // Index return the element index where 0 is the head,1 is the element next
@@ -132,6 +133,7 @@ func (l *List) DelNode(node *ListNode) {
 	} else {
 		node.next.prev = node.prev
 	}
+	l.length--
 }
 
 // Rotate take tail element to head

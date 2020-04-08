@@ -6,5 +6,6 @@ import (
 
 func main() {
 
-	godis.Test_Sds()
+	// godis.TestSds()
+	godis.TestList()
 }

@@ -3,7 +3,7 @@ package godis
 import "fmt"
 
 // TestSds ...
-func Test_Sds() {
+func TestSds() {
 
 	str := "abcdefse"
 	s1 := SdsNew(&str)
