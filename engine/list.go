@@ -51,6 +51,11 @@ func NewList() *List {
 	}
 }
 
+// SetMatchMethod set matchFunc be the list match function
+func (l *List) SetMatchMethod(matchFunc func(*Object, *Object) bool) {
+	l.match = matchFunc
+}
+
 // AddNodeHead add a node at head of list l
 func (l *List) AddNodeHead(v *Object) {
 	node := NewNode(v)

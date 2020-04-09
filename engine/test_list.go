@@ -4,7 +4,7 @@ import "fmt"
 
 // TestList ...
 func TestList() {
-	match := func(v1 *Object, v2 *Object) bool {
+	matchFunc := func(v1 *Object, v2 *Object) bool {
 		if v1.ObjectType != v2.ObjectType {
 			return false
 		}
@@ -25,7 +25,7 @@ func TestList() {
 	}
 
 	list := NewList()
-	list.match = match
+	list.SetMatchMethod(matchFunc)
 
 	//AddNodeTail
 	fmt.Println("add node tail 0~10")
