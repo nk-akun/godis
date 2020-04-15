@@ -1,7 +1,8 @@
 package godis
 
 const (
-	DICT_STEP_HASH_SIZE = 1
+	DICT_STEP_HASH_SIZE  = 1
+	DICT_HT_INITIAL_SIZE = 4
 )
 
 // DictNode stores key and value
@@ -44,6 +45,24 @@ func NewDict(funcs *DictFunc) *Dict {
 	return d
 }
 
+// NewDictNode return a new dict node
+func NewDictNode(key *Object, value *Object) *DictNode {
+	return &DictNode{
+		key:   key,
+		value: value,
+	}
+}
+
+// NewDictHT ...
+func NewDictHT(size uint64) *DictHT {
+	return &DictHT{
+		table:    make([]*DictNode, size),
+		size:     size,
+		sizeMask: size - 1,
+		used:     0,
+	}
+}
+
 func (ht *DictHT) init() {
 	ht = &DictHT{
 		table:    make([]*DictNode, 0), // init 2
@@ -64,18 +83,26 @@ func (d *Dict) addRaw(key *Object, value *Object) {
 		d.rehashStep(DICT_STEP_HASH_SIZE)
 	}
 
+	d.expandIfFull()
+
 	var index uint64
 	var ht *DictHT
 	if i := d.getIndexKey(key, d.funcs.calHash(key)); i == -1 {
 		return
-	index = uint64(i)
+	} else {
+		index = uint64(i)
+	}
 
 	if d.isRehashing() {
 		ht = d.ht[1]
 	} else {
 		ht = d.ht[0]
-	}	
-	
+	}
+
+	node := NewDictNode(key, value)
+	node.next = ht.table[index]
+	ht.table[index] = node
+	ht.used++
 }
 
 func (d *Dict) isRehashing() bool {
@@ -134,6 +161,36 @@ func (d *Dict) getIndexKey(key *Object, hashValue uint64) int64 {
 		}
 	}
 	return int64(index)
+}
+
+func (d *Dict) expandIfFull() {
+	if d.isRehashing() {
+		return
+	}
+	if d.ht[0].size == 0 {
+		d.expand(DICT_HT_INITIAL_SIZE)
+	}
+	if d.ht[0].used >= d.ht[0].size {
+		d.expand(d.ht[0].size << 1)
+	}
+}
+
+func (d *Dict) expand(size uint64) {
+	size = nearBinary(size)
+	if size <= d.ht[0].size {
+		return
+	}
+
+	ht := NewDictHT(size)
+	d.ht[1] = ht
+	d.rehashIndex = 0
+}
+
+func nearBinary(num uint64) uint64 {
+	var i uint64
+	for i = DICT_HT_INITIAL_SIZE; i < num; i <<= 1 {
+	}
+	return i
 }
 
 // Search find dict node with the key
