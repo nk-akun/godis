@@ -34,6 +34,9 @@ type Dict struct {
 	iterators   uint64
 }
 
+type Iterator struct {
+}
+
 // NewDict return a new dict pointer
 func NewDict(funcs *DictFunc) *Dict {
 	d := new(Dict)
@@ -75,6 +78,12 @@ func (ht *DictHT) init() {
 // Add add key value to dict d
 func (d *Dict) Add(key *Object, value *Object) {
 	d.addRaw(key, value)
+}
+
+// Get return value by key or nil if can't find the node
+func (d *Dict) Get(key *Object) *Object {
+	node := d.Search(key)
+	return node.value
 }
 
 func (d *Dict) addRaw(key *Object, value *Object) {
@@ -195,5 +204,25 @@ func nearBinary(num uint64) uint64 {
 
 // Search find dict node with the key
 func (d *Dict) Search(key *Object) *DictNode {
+	if d.ht[0].used+d.ht[1].used == 0 {
+		return nil
+	}
+	if d.isRehashing() {
+		d.rehashStep(DICT_STEP_HASH_SIZE)
+	}
+	hashValue := d.funcs.calHash(key)
+	for i := 0; i < 2; i++ {
+		index := hashValue & d.ht[i].sizeMask
+		node := d.ht[i].table[index]
+		for node != nil {
+			if node.key == key || d.funcs.keyCompare(node.key, key) == 0 {
+				return node
+			}
+			node = node.next
+		}
+		if !d.isRehashing() {
+			break
+		}
+	}
 	return nil
 }
