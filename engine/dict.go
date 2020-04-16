@@ -1,8 +1,16 @@
 package godis
 
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/nk-akun/godis/engine/util"
+)
+
 const (
 	DICT_STEP_HASH_SIZE  = 1
 	DICT_HT_INITIAL_SIZE = 4
+	DICT_RESIZE_RATIO    = 5
 )
 
 // DictNode stores key and value
@@ -34,7 +42,15 @@ type Dict struct {
 	iterators   uint64
 }
 
-type Iterator struct {
+// DictIterator is used to traverse dict
+type DictIterator struct {
+	dt         *Dict
+	index      int64
+	table      int
+	safe       bool
+	node       *DictNode
+	nextNode   *DictNode
+	stateLable uint64
 }
 
 // NewDict return a new dict pointer
@@ -120,7 +136,7 @@ func (d *Dict) isRehashing() bool {
 
 func (d *Dict) rehashStep(num int) {
 	// if there are visitors traversing this dict
-	if d.iterators >= 0 {
+	if d.iterators > 0 {
 		return
 	}
 
@@ -179,13 +195,13 @@ func (d *Dict) expandIfFull() {
 	if d.ht[0].size == 0 {
 		d.expand(DICT_HT_INITIAL_SIZE)
 	}
-	if d.ht[0].used >= d.ht[0].size {
+	if d.ht[0].used/d.ht[0].size >= DICT_RESIZE_RATIO {
 		d.expand(d.ht[0].size << 1)
 	}
 }
 
 func (d *Dict) expand(size uint64) {
-	size = nearBinary(size)
+	size = util.NearLargeUnsignedBinary(size)
 	if size <= d.ht[0].size {
 		return
 	}
@@ -193,13 +209,6 @@ func (d *Dict) expand(size uint64) {
 	ht := NewDictHT(size)
 	d.ht[1] = ht
 	d.rehashIndex = 0
-}
-
-func nearBinary(num uint64) uint64 {
-	var i uint64
-	for i = DICT_HT_INITIAL_SIZE; i < num; i <<= 1 {
-	}
-	return i
 }
 
 // Search find dict node with the key
@@ -225,4 +234,64 @@ func (d *Dict) Search(key *Object) *DictNode {
 		}
 	}
 	return nil
+}
+
+// NewDictIterator return a new iterator
+func NewDictIterator(d *Dict) *DictIterator {
+	return &DictIterator{
+		dt:       d,
+		table:    0,
+		index:    -1,
+		safe:     false,
+		node:     nil,
+		nextNode: nil,
+	}
+}
+
+// NewSafeDictIterator return a new iterator which is safe
+func NewSafeDictIterator(d *Dict) *DictIterator {
+	iter := NewDictIterator(d)
+	iter.safe = true
+	return iter
+}
+
+// Next return the next node of node
+func (iter *DictIterator) Next() *DictNode {
+	for {
+		if iter.node == nil {
+			ht := iter.dt.ht[iter.table]
+			if iter.table == 0 && iter.index == -1 {
+				if iter.safe {
+					iter.dt.iterators++
+				} else {
+
+				}
+			}
+		}
+	}
+}
+
+func (d *Dict) stateLable() uint64 {
+	nums := make([]uint64, 6)
+	addr := fmt.Sprintf("%p", d.ht[0])
+	nums[0], _ = strconv.ParseUint(addr[2:], 16, 64)
+	nums[1] = d.ht[0].size
+	nums[2] = d.ht[0].used
+	addr = fmt.Sprintf("%p", d.ht[1])
+	nums[3], _ = strconv.ParseUint(addr[2:], 16, 64)
+	nums[4] = d.ht[1].size
+	nums[5] = d.ht[1].used
+
+	var hash uint64
+	for i := 0; i < 6; i++ {
+		hash += nums[i]
+		hash = (^hash) + (hash << 21)
+		hash = hash ^ (hash >> 24)
+		hash = (hash + (hash << 3)) + (hash << 8)
+		hash = hash ^ (hash >> 14)
+		hash = (hash + (hash << 2)) + (hash << 4)
+		hash = hash ^ (hash >> 28)
+		hash = hash + (hash << 31)
+	}
+	return hash
 }
