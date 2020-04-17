@@ -255,6 +255,19 @@ func NewSafeDictIterator(d *Dict) *DictIterator {
 	return iter
 }
 
+// ReleaseIterator release interator so dict could rehash
+// or check whether dict has changed or not
+func ReleaseIterator(iter *DictIterator) {
+	if !(iter.index == -1 && iter.table == 0) {
+		if iter.safe {
+			iter.dt.iterators--
+		} else if iter.stateLable != iter.dt.stateLable() {
+			log.Errorf("dict stateTable has changed when iterator traverse")
+		}
+	}
+	iter = nil
+}
+
 // Next return the next node of node
 func (iter *DictIterator) Next() *DictNode {
 	for {
@@ -264,9 +277,25 @@ func (iter *DictIterator) Next() *DictNode {
 				if iter.safe {
 					iter.dt.iterators++
 				} else {
-
+					iter.stateLable = iter.dt.stateLable()
 				}
 			}
+
+			iter.index++
+			if iter.index >= int64(ht.size) {
+				if iter.table == 0 && iter.dt.isRehashing() {
+					iter.table++
+					iter.index = 0
+					ht = iter.dt.ht[iter.table]
+				}
+			}
+			iter.node = ht.table[iter.index]
+		} else {
+			iter.node = iter.nextNode
+		}
+		if iter.node != nil {
+			iter.nextNode = iter.node.next
+			return iter.node
 		}
 	}
 }
