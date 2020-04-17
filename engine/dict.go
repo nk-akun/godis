@@ -13,6 +13,11 @@ const (
 	DICT_RESIZE_RATIO    = 5
 )
 
+const (
+	DICT_ERROR = 1
+	DICT_OK    = 0
+)
+
 // DictNode stores key and value
 type DictNode struct {
 	key   *Object
@@ -92,8 +97,12 @@ func (ht *DictHT) init() {
 }
 
 // Add add key value to dict d
-func (d *Dict) Add(key *Object, value *Object) {
-	d.addRaw(key, value)
+func (d *Dict) Add(key *Object, value *Object) int {
+	node := d.addRaw(key, value)
+	if node == nil {
+		return DICT_ERROR
+	}
+	return DICT_OK
 }
 
 // Get return value by key or nil if can't find the node
@@ -102,7 +111,12 @@ func (d *Dict) Get(key *Object) *Object {
 	return node.value
 }
 
-func (d *Dict) addRaw(key *Object, value *Object) {
+// Delete delete node with given key
+func (d *Dict) Delete(key *Object) int {
+	return d.deleteNode(key)
+}
+
+func (d *Dict) addRaw(key *Object, value *Object) *DictNode {
 	// incorporate rehash into add action
 	if d.isRehashing() {
 		d.rehashStep(DICT_STEP_HASH_SIZE)
@@ -113,7 +127,7 @@ func (d *Dict) addRaw(key *Object, value *Object) {
 	var index uint64
 	var ht *DictHT
 	if i := d.getIndexKey(key, d.funcs.calHash(key)); i == -1 {
-		return
+		return nil
 	} else {
 		index = uint64(i)
 	}
@@ -128,6 +142,39 @@ func (d *Dict) addRaw(key *Object, value *Object) {
 	node.next = ht.table[index]
 	ht.table[index] = node
 	ht.used++
+	return node
+}
+
+func (d *Dict) deleteNode(key *Object) int {
+	if d.ht[0].used+d.ht[1].used == 0 {
+		return DICT_ERROR
+	}
+	if d.isRehashing() {
+		d.rehashStep(DICT_STEP_HASH_SIZE)
+	}
+
+	hashValue := d.funcs.calHash(key)
+	for i := 0; i < 2; i++ {
+		index := hashValue & d.ht[i].sizeMask
+		node := d.ht[i].table[index]
+		var preNode *DictNode = nil
+
+		for node != nil {
+			if node.key == key || d.funcs.keyCompare(key, node.key) == 0 {
+				if preNode == nil {
+					d.ht[i].table[index] = node.next
+				} else {
+					preNode.next = node.next
+				}
+				ReleaseDictNode(node)
+				d.ht[i].used--
+				return DICT_OK
+			}
+			preNode = node
+			node = node.next
+		}
+	}
+	return DICT_ERROR
 }
 
 func (d *Dict) isRehashing() bool {
@@ -266,6 +313,14 @@ func ReleaseIterator(iter *DictIterator) {
 		}
 	}
 	iter = nil
+}
+
+// ReleaseDictNode release dict node
+func ReleaseDictNode(node *DictNode) {
+	node.key = nil
+	node.value = nil
+	node.next = nil
+	node = nil
 }
 
 // Next return the next node of node
