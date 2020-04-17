@@ -61,8 +61,8 @@ type DictIterator struct {
 // NewDict return a new dict pointer
 func NewDict(funcs *DictFunc) *Dict {
 	d := new(Dict)
-	d.ht[0].init()
-	d.ht[1].init()
+	d.ht[0] = NewDictHT(0)
+	d.ht[1] = NewDictHT(0)
 	d.funcs = funcs
 	d.rehashIndex = -1
 	d.iterators = 0
@@ -79,21 +79,28 @@ func NewDictNode(key *Object, value *Object) *DictNode {
 
 // NewDictHT ...
 func NewDictHT(size uint64) *DictHT {
-	return &DictHT{
+	if size == 0 {
+		return &DictHT{
+			table:    nil,
+			size:     0,
+			sizeMask: 0,
+			used:     0,
+		}
+	}
+	ht := &DictHT{
 		table:    make([]*DictNode, size),
 		size:     size,
 		sizeMask: size - 1,
 		used:     0,
 	}
+	return ht
 }
 
-func (ht *DictHT) init() {
-	ht = &DictHT{
-		table:    make([]*DictNode, 0), // init 2
-		size:     0,
-		sizeMask: 0,
-		used:     0,
-	}
+func (ht *DictHT) reset() {
+	ht.table = nil
+	ht.size = 0
+	ht.sizeMask = 0
+	ht.used = 0
 }
 
 // Add add key value to dict d
@@ -146,7 +153,7 @@ func (d *Dict) addRaw(key *Object, value *Object) *DictNode {
 }
 
 func (d *Dict) deleteNode(key *Object) int {
-	if d.ht[0].used+d.ht[1].used == 0 {
+	if d.ht[0].used+d.ht[1].used == 0 { // empty dict
 		return DICT_ERROR
 	}
 	if d.isRehashing() {
@@ -161,9 +168,9 @@ func (d *Dict) deleteNode(key *Object) int {
 
 		for node != nil {
 			if node.key == key || d.funcs.keyCompare(key, node.key) == 0 {
-				if preNode == nil {
+				if preNode == nil { // head
 					d.ht[i].table[index] = node.next
-				} else {
+				} else { // not head
 					preNode.next = node.next
 				}
 				ReleaseDictNode(node)
@@ -213,7 +220,7 @@ func (d *Dict) rehashStep(num int) {
 	if d.ht[0].used == 0 {
 		d.ht[0] = d.ht[1]
 		d.rehashIndex = -1
-		d.ht[1].init()
+		d.ht[1] = NewDictHT(0)
 	}
 }
 
@@ -241,8 +248,7 @@ func (d *Dict) expandIfFull() {
 	}
 	if d.ht[0].size == 0 {
 		d.expand(DICT_HT_INITIAL_SIZE)
-	}
-	if d.ht[0].used/d.ht[0].size >= DICT_RESIZE_RATIO {
+	} else if d.ht[0].used/d.ht[0].size >= DICT_RESIZE_RATIO {
 		d.expand(d.ht[0].size << 1)
 	}
 }
@@ -254,6 +260,13 @@ func (d *Dict) expand(size uint64) {
 	}
 
 	ht := NewDictHT(size)
+
+	// if dict has not been used,the initialization is necessary
+	if d.ht[0].table == nil {
+		d.ht[0] = ht
+		return
+	}
+
 	d.ht[1] = ht
 	d.rehashIndex = 0
 }
@@ -328,7 +341,7 @@ func (iter *DictIterator) Next() *DictNode {
 	for {
 		if iter.node == nil {
 			ht := iter.dt.ht[iter.table]
-			if iter.table == 0 && iter.index == -1 {
+			if iter.table == 0 && iter.index == -1 { // using iter for the first time
 				if iter.safe {
 					iter.dt.iterators++
 				} else {
@@ -338,10 +351,12 @@ func (iter *DictIterator) Next() *DictNode {
 
 			iter.index++
 			if iter.index >= int64(ht.size) {
-				if iter.table == 0 && iter.dt.isRehashing() {
+				if iter.table == 0 && iter.dt.isRehashing() { // next table
 					iter.table++
 					iter.index = 0
 					ht = iter.dt.ht[iter.table]
+				} else {
+					break
 				}
 			}
 			iter.node = ht.table[iter.index]
@@ -353,6 +368,7 @@ func (iter *DictIterator) Next() *DictNode {
 			return iter.node
 		}
 	}
+	return nil
 }
 
 func (d *Dict) stateLable() uint64 {
