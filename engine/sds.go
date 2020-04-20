@@ -9,14 +9,26 @@ type Sdshdr struct {
 	buf []byte
 }
 
-// SdsNew return a new Sdshdr with default capacity 20
-func SdsNew(str *string) *Sdshdr {
+// SdsNewString return a new Sdshdr with default capacity 20
+func SdsNewString(str *string) *Sdshdr {
 	l := len(*str)
 	return &Sdshdr{
 		len: l,
 		cap: l,
 		buf: []byte(*str),
 	}
+}
+
+// SdsNewBuf return a new Sdshdr
+func SdsNewBuf(buf []byte) *Sdshdr {
+	l := len(buf)
+	sds := &Sdshdr{
+		len: l,
+		cap: l,
+		buf: make([]byte, l),
+	}
+	copy(sds.buf, buf)
+	return sds
 }
 
 // SdsNewEmpty return a new Sdshdr with 0 size
@@ -32,6 +44,13 @@ func SdsNewEmpty() *Sdshdr {
 func (sds *Sdshdr) SdsGetString() *string {
 	str := string(sds.buf[:sds.len])
 	return &str
+}
+
+// SdsGetBuf return the buf of sds
+func (sds *Sdshdr) SdsGetBuf() []byte {
+	buf := make([]byte, sds.len)
+	copy(buf, sds.buf)
+	return buf
 }
 
 // SdsCopy uses str to replace previously existing content
