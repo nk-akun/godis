@@ -30,6 +30,13 @@ type zskipListLevel struct {
 	span    uint32
 }
 
+type zrangeTag struct {
+	minx  float64
+	maxx  float64
+	eminx bool // e is exclusive
+	emaxx bool
+}
+
 // NewZsl create a new zskipList
 func NewZsl() *ZskipList {
 	zsl := &ZskipList{
@@ -177,4 +184,154 @@ func (zsl *ZskipList) Update(value *Sdshdr, curScore float64, newScore float64) 
 	zsl.DeleteNode(node, borders)
 	newNode := zsl.Insert(newScore, node.value)
 	return newNode
+}
+
+func zslCompareMin(score float64, rg *zrangeTag) bool {
+	if rg.eminx {
+		return score > rg.minx
+	}
+	return score >= rg.minx
+}
+
+func zslCompareMax(score float64, rg *zrangeTag) bool {
+	if rg.emaxx {
+		return score < rg.maxx
+	}
+	return score <= rg.maxx
+}
+
+// IsPartInRange judge whether there is a part of nodes in range or not
+func (zsl *ZskipList) IsPartInRange(rg *zrangeTag) bool {
+	if rg.minx > rg.maxx || (rg.minx == rg.maxx && (rg.eminx || rg.emaxx)) {
+		return false
+	}
+	p := zsl.tail
+	if p == nil || !zslCompareMin(p.score, rg) {
+		return false
+	}
+	p = zsl.header.level[0].forward
+	if p == nil || !zslCompareMax(p.score, rg) {
+		return false
+	}
+	return true
+}
+
+// FirstInRange return the first node in range
+func (zsl *ZskipList) FirstInRange(rg *zrangeTag) *ZskipListNode {
+	if !zsl.IsPartInRange(rg) {
+		return nil
+	}
+	p := zsl.header
+	for i := zsl.level - 1; i >= 0; i-- {
+		for p.level[i].forward != nil && !zslCompareMin(p.level[i].forward.score, rg) {
+			p = p.level[i].forward
+		}
+	}
+
+	p = p.level[0].forward
+	if p == nil || !zslCompareMax(p.score, rg) {
+		return nil
+	}
+	return p
+}
+
+// LastInRange return the last node in range
+func (zsl *ZskipList) LastInRange(rg *zrangeTag) *ZskipListNode {
+	if !zsl.IsPartInRange(rg) {
+		return nil
+	}
+	p := zsl.header
+	for i := zsl.level - 1; i >= 0; i-- {
+		for p.level[i].forward != nil && !zslCompareMax(p.level[i].forward.score, rg) {
+			p = p.level[i].forward
+		}
+	}
+
+	if p == nil || !zslCompareMin(p.score, rg) {
+		return nil
+	}
+	return p
+}
+
+// DeleteRangeByScore delete nodes with score(score>= minx && score <= maxx),
+// which are also deleted in hash table
+func (zsl *ZskipList) DeleteRangeByScore(rg *zrangeTag, dt *Dict) uint32 {
+	borders := make([]*ZskipListNode, ZSL_MAX_LEVEL)
+	p := zsl.header
+	for i := zsl.level - 1; i >= 0; i-- {
+		for p.level[i].forward != nil && !zslCompareMin(p.level[i].forward.score, rg) {
+			p = p.level[i].forward
+		}
+		borders[i] = p
+	}
+
+	var num uint32 = 0
+	p = p.level[0].forward
+	for p != nil && zslCompareMax(p.score, rg) {
+		forward := p.level[0].forward
+		zsl.DeleteNode(p, borders)
+		dt.Delete(NewObject(OBJSDS, p.value))
+		num++
+		p = forward
+	}
+	return num
+}
+
+// DeleteRangeByRank delete node from rank start to rank end,
+// and delete these nodes from hash table
+func (zsl *ZskipList) DeleteRangeByRank(start uint32, end uint32, dt *Dict) uint32 {
+	borders := make([]*ZskipListNode, ZSL_MAX_LEVEL)
+	p := zsl.header
+	var dis uint32 = 0
+	var num uint32 = 0
+	for i := zsl.level - 1; i >= 0; i-- {
+		for p.level[i].forward != nil && dis+p.level[i].span < start {
+			p = p.level[i].forward
+		}
+		borders[i] = p
+	}
+	p = p.level[0].forward
+	dis++
+
+	for p != nil && dis <= end {
+		forward := p.level[0].forward
+		zsl.DeleteNode(p, borders)
+		dt.Delete(NewObject(OBJSDS, p.value))
+		p = forward
+		num++
+		dis++
+	}
+	return num
+}
+
+// GetRank return rank of node contains the score and value
+func (zsl *ZskipList) GetRank(score float64, value *Sdshdr) uint32 {
+	var dis uint32 = 0
+	p := zsl.header
+	for i := zsl.level - 1; i >= 0; i-- {
+		for p.level[i].forward != nil && (p.level[i].forward.score < score || (p.level[i].forward.score == score && SdsCmp(p.level[i].forward.value, value) <= 0)) {
+			dis += p.level[i].span
+			p = p.level[i].forward
+		}
+		if p.score == score && SdsCmp(p.value, value) == 0 {
+			return dis
+		}
+	}
+	return 0
+}
+
+// GetElementByRank return the element by its rank
+func (zsl *ZskipList) GetElementByRank(rank uint32) *ZskipListNode {
+	p := zsl.header
+	var dis uint32 = 0
+	for i := zsl.level - 1; i >= 0; i-- {
+		for p.level[i].forward != nil && dis+p.level[i].span <= rank {
+			dis += p.level[i].span
+			p = p.level[i].forward
+		}
+		if dis == rank {
+			return p
+		}
+	}
+	return nil
 }

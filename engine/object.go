@@ -7,11 +7,12 @@ type Object struct {
 }
 
 const OBJString = 0
-const OBJInt = 1
-const OBJSet = 2
-const OBJZset = 3
-const OBJHash = 4
-const OBJList = 5
+const OBJSDS = 1
+const OBJInt = 2
+const OBJSet = 3
+const OBJZset = 4
+const OBJHash = 5
+const OBJList = 6
 
 // NewObject return a new Object
 func NewObject(tp int, ptr interface{}) *Object {
