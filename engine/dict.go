@@ -28,14 +28,14 @@ type DictNode struct {
 // DictHT stores a hash table
 type DictHT struct {
 	table    []*DictNode
-	size     uint64
-	sizeMask uint64
-	used     uint64
+	size     uint32
+	sizeMask uint32
+	used     uint32
 }
 
 // DictFunc stores functions of dict
 type DictFunc struct {
-	calHash    func(key *Object) uint64
+	calHash    func(key *Object) uint32
 	keyCompare func(key1 *Object, key2 *Object) int
 }
 
@@ -44,7 +44,7 @@ type Dict struct {
 	ht          [2]*DictHT
 	funcs       *DictFunc
 	rehashIndex int64
-	iterators   uint64
+	iterators   uint32
 }
 
 // DictIterator is used to traverse dict
@@ -55,7 +55,7 @@ type DictIterator struct {
 	safe       bool
 	node       *DictNode
 	nextNode   *DictNode
-	stateLable uint64
+	stateLable uint32
 }
 
 // NewDict return a new dict pointer
@@ -78,7 +78,7 @@ func NewDictNode(key *Object, value *Object) *DictNode {
 }
 
 // NewDictHT ...
-func NewDictHT(size uint64) *DictHT {
+func NewDictHT(size uint32) *DictHT {
 	if size == 0 {
 		return &DictHT{
 			table:    nil,
@@ -131,12 +131,12 @@ func (d *Dict) addRaw(key *Object, value *Object) *DictNode {
 
 	d.expandIfFull()
 
-	var index uint64
+	var index uint32
 	var ht *DictHT
 	if i := d.getIndexKey(key, d.funcs.calHash(key)); i == -1 {
 		return nil
 	} else {
-		index = uint64(i)
+		index = uint32(i)
 	}
 
 	if d.isRehashing() {
@@ -224,8 +224,8 @@ func (d *Dict) rehashStep(num int) {
 	}
 }
 
-func (d *Dict) getIndexKey(key *Object, hashValue uint64) int64 {
-	var index uint64
+func (d *Dict) getIndexKey(key *Object, hashValue uint32) int64 {
+	var index uint32
 	for i := 0; i < 2; i++ {
 		index = hashValue & d.ht[i].sizeMask
 		node := d.ht[i].table[index]
@@ -253,7 +253,7 @@ func (d *Dict) expandIfFull() {
 	}
 }
 
-func (d *Dict) expand(size uint64) {
+func (d *Dict) expand(size uint32) {
 	size = util.NearLargeUnsignedBinary(size)
 	if size <= d.ht[0].size {
 		return
@@ -371,18 +371,20 @@ func (iter *DictIterator) Next() *DictNode {
 	return nil
 }
 
-func (d *Dict) stateLable() uint64 {
-	nums := make([]uint64, 6)
+func (d *Dict) stateLable() uint32 {
+	nums := make([]uint32, 6)
 	addr := fmt.Sprintf("%p", d.ht[0])
-	nums[0], _ = strconv.ParseUint(addr[2:], 16, 64)
+	tmp, _ := strconv.ParseUint(addr[2:], 16, 32)
+	nums[0] = uint32(tmp)
 	nums[1] = d.ht[0].size
 	nums[2] = d.ht[0].used
 	addr = fmt.Sprintf("%p", d.ht[1])
-	nums[3], _ = strconv.ParseUint(addr[2:], 16, 64)
+	tmp, _ = strconv.ParseUint(addr[2:], 16, 32)
+	nums[3] = uint32(tmp)
 	nums[4] = d.ht[1].size
 	nums[5] = d.ht[1].used
 
-	var hash uint64
+	var hash uint32
 	for i := 0; i < 6; i++ {
 		hash += nums[i]
 		hash = (^hash) + (hash << 21)

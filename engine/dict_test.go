@@ -9,13 +9,13 @@ import (
 // TestDict ...
 func TestDict() {
 	dtf := &DictFunc{}
-	dtf.calHash = func(key *Object) uint64 {
+	dtf.calHash = func(key *Object) uint32 {
 		sKey, _ := key.Ptr.(string)
 		hash := 0
 		for _, c := range sKey {
 			hash += int(c)
 		}
-		return uint64(hash)
+		return uint32(hash)
 	}
 	dtf.keyCompare = func(key1, key2 *Object) int {
 		s1, _ := key1.Ptr.(string)

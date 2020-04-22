@@ -37,3 +37,8 @@ func InitLogger(logPath string, maxSize, maxAge, maxBackups int, compress bool) 
 	core := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 	log = zap.New(core, zap.AddCaller()).Sugar()
 }
+
+// GetGodisLogger return the logger to print log out of godis
+func GetGodisLogger() *zap.SugaredLogger {
+	return log
+}

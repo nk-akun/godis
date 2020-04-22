@@ -46,6 +46,13 @@ func (s *Server) CreateClient() *Client {
 	return &Client{}
 }
 
+func InitServer() *Server {
+	s := new(Server)
+	s.DbNum = 8
+	s.Db = make([]*GodisDB, s.DbNum)
+	return nil
+}
+
 // ReadClientContent read command from client
 func (c *Client) ReadClientContent(conn net.Conn) error {
 

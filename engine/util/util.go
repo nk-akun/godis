@@ -17,8 +17,8 @@ func Min(x, y int) int {
 }
 
 // NearLargeUnsignedBinary return the first number larger than given num
-func NearLargeUnsignedBinary(num uint64) uint64 {
-	var i uint64
+func NearLargeUnsignedBinary(num uint32) uint32 {
+	var i uint32
 	for i = 2; i < num; i <<= 1 {
 	}
 	return i
