@@ -13,6 +13,7 @@ const OBJSet = 3
 const OBJZset = 4
 const OBJHash = 5
 const OBJList = 6
+const OBJCommand = 7
 
 // NewObject return a new Object
 func NewObject(tp int, ptr interface{}) *Object {

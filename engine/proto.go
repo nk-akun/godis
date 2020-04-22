@@ -86,6 +86,14 @@ func NewBulk(data []byte) *EncodeData {
 	return ans
 }
 
+// NewError ...
+func NewError(data []byte) *EncodeData {
+	ans := &EncodeData{}
+	ans.Type = TypeError
+	ans.Value = data
+	return ans
+}
+
 func errorNew(errorMsg string) error {
 	return errors.New("error: " + errorMsg)
 }

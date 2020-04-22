@@ -2,7 +2,9 @@ package godis
 
 import (
 	"bytes"
+	"fmt"
 	"net"
+	"os"
 )
 
 type cmdFunc func(c *Client, s *Server)
@@ -77,7 +79,34 @@ func InitDB(id int) *GodisDB {
 
 // ProcessCommand ...
 func (s *Server) ProcessCommand(c *Client) {
+	name, ok := c.Argv[0].Ptr.(string)
+	if !ok {
+		log.Errorf("cmd error:%v", ok)
+		os.Exit(1)
+	}
+	cmd := s.LookUpCommand(name)
+	if cmd == nil {
+		addReplyError(c, fmt.Sprintf("error: Unknown command %s", name))
+	} else {
+		c.Command = cmd
+		process(c, s)
+	}
+}
 
+func process(c *Client, s *Server) {
+	c.Command.Proc(c, s)
+}
+
+// LookUpCommand return the cmd if name is a cmd
+func (s *Server) LookUpCommand(name string) *GodisCommand {
+	if v := s.Commands.Get(NewObject(OBJString, name)); v != nil {
+		cmd, ok := v.Ptr.(*GodisCommand)
+		if !ok {
+			return nil
+		}
+		return cmd
+	}
+	return nil
 }
 
 // ReadClientContent read command from client
@@ -110,4 +139,15 @@ func (c *Client) TransClientContent() error {
 		c.Argv[i] = NewObject(OBJString, string(bulk.Value))
 	}
 	return nil
+}
+
+func addReplyError(c *Client, v string) {
+	e := NewError([]byte(v))
+	addReply(c, e)
+}
+
+func addReply(c *Client, e *EncodeData) {
+	if s, err := EncodeMultiBulk(e); err == nil {
+		c.Buf = SdsNewBuf(s)
+	}
 }
