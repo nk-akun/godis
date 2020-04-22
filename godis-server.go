@@ -45,7 +45,7 @@ func handle(conn net.Conn) {
 		if err != nil {
 			engine.GetGodisLogger().Errorf("process input buffer error:%+v", err)
 		}
-		engine.ProcessCommand(c)
+		server.ProcessCommand(c)
 		responseClient(conn, client)
 	}
 }

@@ -46,11 +46,38 @@ func (s *Server) CreateClient() *Client {
 	return &Client{}
 }
 
+// InitServer ...
 func InitServer() *Server {
 	s := new(Server)
 	s.DbNum = 8
 	s.Db = make([]*GodisDB, s.DbNum)
-	return nil
+	for i := 0; i < s.DbNum; i++ {
+		s.Db[i] = InitDB(i)
+	}
+	df := &DictFunc{
+		calHash:    CalHashCommon,
+		keyCompare: CompareValueCommon,
+	}
+	s.Commands = NewDict(df)
+	return s
+}
+
+// InitDB ...
+func InitDB(id int) *GodisDB {
+	db := new(GodisDB)
+	df := &DictFunc{
+		calHash:    CalHashCommon,
+		keyCompare: CompareValueCommon,
+	}
+	db.Dt = NewDict(df)
+	db.Expires = NewDict(df)
+	db.ID = id
+	return db
+}
+
+// ProcessCommand ...
+func (s *Server) ProcessCommand(c *Client) {
+
 }
 
 // ReadClientContent read command from client
