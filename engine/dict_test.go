@@ -9,22 +9,8 @@ import (
 // TestDict ...
 func TestDict() {
 	dtf := &DictFunc{}
-	dtf.calHash = func(key *Object) uint32 {
-		sKey, _ := key.Ptr.(string)
-		hash := 0
-		for _, c := range sKey {
-			hash += int(c)
-		}
-		return uint32(hash)
-	}
-	dtf.keyCompare = func(key1, key2 *Object) int {
-		s1, _ := key1.Ptr.(string)
-		s2, _ := key2.Ptr.(string)
-		if s1 == s2 {
-			return 0
-		}
-		return 1
-	}
+	dtf.calHash = CalHashCommon
+	dtf.keyCompare = CompareValueCommon
 
 	rand.Seed(time.Now().Unix())
 	keys := make([]string, 0, 100)

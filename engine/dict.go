@@ -35,8 +35,8 @@ type DictHT struct {
 
 // DictFunc stores functions of dict
 type DictFunc struct {
-	calHash    func(key *Object) uint32
-	keyCompare func(key1 *Object, key2 *Object) int
+	calHash    func(*Object) uint32
+	keyCompare func(*Object, *Object) int
 }
 
 // Dict stores
