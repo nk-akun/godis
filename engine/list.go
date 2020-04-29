@@ -234,3 +234,8 @@ func (iter *ListIter) NextNode() *ListNode {
 	}
 	return node
 }
+
+// LPushCommand ...
+func LPushCommand(c *Client, s *Server) {
+
+}
