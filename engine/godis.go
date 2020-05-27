@@ -45,7 +45,9 @@ type GodisCommand struct {
 
 // CreateClient create a client
 func (s *Server) CreateClient() *Client {
-	return &Client{}
+	return &Client{
+		Db: s.Db[0],
+	}
 }
 
 // InitServer ...
@@ -139,6 +141,17 @@ func (c *Client) TransClientContent() error {
 		c.Argv[i] = NewObject(OBJString, string(bulk.Value))
 	}
 	return nil
+}
+
+func addReplyStatus(c *Client, v string) {
+	e := NewStatus([]byte(v))
+	addReply(c, e)
+}
+
+func addReplyInt(c *Client, v int64) {
+	s := fmt.Sprintf("(integer) %d", v)
+	e := NewInt([]byte(s))
+	addReply(c, e)
 }
 
 func addReplyError(c *Client, v string) {

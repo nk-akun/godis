@@ -1,5 +1,11 @@
 package godis
 
+import (
+	"bytes"
+	"fmt"
+	"strconv"
+)
+
 const (
 	LIST_START_HEAD = 0
 	LIST_START_TAIL = 1
@@ -58,7 +64,7 @@ func (l *List) SetMatchMethod(matchFunc func(*Object, *Object) bool) {
 
 // AddNodeHead add a node at head of list l
 func (l *List) AddNodeHead(v *Object) {
-	node := NewNode(v)
+	node := NewListNode(v)
 	if l.First() == nil {
 		l.head, l.tail = node, node
 	} else {
@@ -71,7 +77,7 @@ func (l *List) AddNodeHead(v *Object) {
 
 // AddNodeTail add a node at end of list l
 func (l *List) AddNodeTail(v *Object) {
-	node := NewNode(v)
+	node := NewListNode(v)
 	if l.Last() == nil {
 		l.head, l.tail = node, node
 	} else {
@@ -84,7 +90,7 @@ func (l *List) AddNodeTail(v *Object) {
 
 // InsertNode insert node that value is v after oldNode if after is true else before oldNode
 func (l *List) InsertNode(oldNode *ListNode, v *Object, after bool) {
-	node := NewNode(v)
+	node := NewListNode(v)
 	if after {
 		node.prev = oldNode
 		node.next = oldNode.next
@@ -198,8 +204,8 @@ func (l *List) RewindTail() *ListIter {
 
 // ListNode
 
-// NewNode return a new node whose node is value
-func NewNode(value *Object) *ListNode {
+// NewListNode return a new node whose node is value
+func NewListNode(value *Object) *ListNode {
 	return &ListNode{
 		prev:  nil,
 		next:  nil,
@@ -235,7 +241,109 @@ func (iter *ListIter) NextNode() *ListNode {
 	return node
 }
 
+// LLenCommand ...
+func LLenCommand(c *Client, s *Server) {
+	if c.Argc < 2 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'llen' command")
+	}
+
+	var length int64
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+
+	if value == nil {
+		length = 0
+	} else {
+		l := value.Ptr.(*List)
+		length = l.Length()
+	}
+
+	addReplyInt(c, length)
+}
+
 // LPushCommand ...
 func LPushCommand(c *Client, s *Server) {
+	if c.Argc < 3 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'lpush' command")
+	}
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		value = NewObject(OBJList, NewList())
+		c.Db.Dt.Add(key, value)
+	}
 
+	l := value.Ptr.(*List)
+	for i := 2; i < c.Argc; i++ {
+		l.AddNodeHead(c.Argv[i])
+	}
+	addReplyInt(c, int64(c.Argc-2))
+}
+
+// RPushCommand ...
+func RPushCommand(c *Client, s *Server) {
+	if c.Argc < 3 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'rpush' command")
+	}
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		value = NewObject(OBJList, NewList())
+		c.Db.Dt.Add(key, value)
+	}
+
+	l := value.Ptr.(*List)
+	for i := c.Argc - 1; i >= 2; i-- {
+		l.AddNodeHead(c.Argv[i])
+	}
+	addReplyInt(c, int64(c.Argc-2))
+}
+
+// LRangeCommand ...
+func LRangeCommand(c *Client, s *Server) {
+	if c.Argc != 4 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'lrange' command")
+	}
+
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "the list don't exists")
+		return
+	}
+	l := value.Ptr.(*List)
+
+	left, err := strconv.ParseInt(c.Argv[2].Ptr.(string), 10, 64)
+	if err != nil {
+		addReplyStatus(c, "(error) ERR value is not an integer or out of range")
+		return
+	}
+	right, err := strconv.ParseInt(c.Argv[3].Ptr.(string), 10, 64)
+	if err != nil {
+		addReplyStatus(c, "(error) ERR value is not an integer or out of range")
+		return
+	}
+
+	iter := l.RewindHead()
+	var i int64
+	var node *ListNode
+	var num int64 = 0
+	for i = 0; i < left; i++ {
+		node = iter.NextNode()
+	}
+
+	b := bytes.Buffer{}
+	for i = left; i <= right; i++ {
+		node = iter.NextNode()
+		if node == nil {
+			break
+		}
+		num++
+		b.WriteString(fmt.Sprintf("%d) %s\n", num, node.Value().Ptr.(string)))
+	}
+	if num > 0 {
+		addReplyStatus(c, b.String())
+	} else {
+		addReplyStatus(c, "the list don't exists or the list is empty")
+	}
 }

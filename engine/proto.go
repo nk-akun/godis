@@ -86,6 +86,22 @@ func NewBulk(data []byte) *EncodeData {
 	return ans
 }
 
+// NewStatus ...
+func NewStatus(data []byte) *EncodeData {
+	ans := &EncodeData{}
+	ans.Type = TypeStatus
+	ans.Value = data
+	return ans
+}
+
+// NewInt ...
+func NewInt(data []byte) *EncodeData {
+	ans := &EncodeData{}
+	ans.Type = TypeInt
+	ans.Value = data
+	return ans
+}
+
 // NewError ...
 func NewError(data []byte) *EncodeData {
 	ans := &EncodeData{}
