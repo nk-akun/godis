@@ -35,11 +35,7 @@ func main() {
 
 		buff := make([]byte, 10240)
 		conn.Read(buff)
-		response, err := godis.DecodeFromBytes(buff)
-		if err != nil {
-			fmt.Println("server error:decode error")
-		}
-		fmt.Println(string(response.Value))
+		fmt.Println(string(buff[1:]))
 	}
 }
 

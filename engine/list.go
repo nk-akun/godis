@@ -294,7 +294,7 @@ func RPushCommand(c *Client, s *Server) {
 
 	l := value.Ptr.(*List)
 	for i := c.Argc - 1; i >= 2; i-- {
-		l.AddNodeHead(c.Argv[i])
+		l.AddNodeTail(c.Argv[i])
 	}
 	addReplyInt(c, int64(c.Argc-2))
 }

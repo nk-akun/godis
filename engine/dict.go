@@ -400,3 +400,33 @@ func (d *Dict) stateLable() uint32 {
 	}
 	return hash
 }
+
+// SetCommand ...
+func SetCommand(c *Client, s *Server) {
+	if c.Argc != 3 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'set' command")
+	}
+
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value != nil {
+		c.Db.Dt.Delete(key)
+	}
+	c.Db.Dt.Add(key, NewObject(OBJSDS, SdsNewString(c.Argv[2].Ptr.(string))))
+	addReplyStatus(c, "OK")
+}
+
+// GetCommand ...
+func GetCommand(c *Client, s *Server) {
+	if c.Argc != 2 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'get' command")
+	}
+
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+	addReplyStatus(c, *(value.Ptr.(*Sdshdr).SdsGetString()))
+}
