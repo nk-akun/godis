@@ -194,6 +194,30 @@ func addCmdFuncs(s *Server) {
 			Name: SdsNewString("get"),
 			Proc: GetCommand,
 		},
+		GodisCommand{
+			Name: SdsNewString("incr"),
+			Proc: IncrCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("zadd"),
+			Proc: ZaddCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("zscore"),
+			Proc: ZscoreCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("zrange"),
+			Proc: ZrangeCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("zrank"),
+			Proc: ZrankCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("zrem"),
+			Proc: ZremCommand,
+		},
 	}
 	for i := range cmds {
 		s.Commands.Add(NewObject(OBJSDS, cmds[i].Name), NewObject(OBJCommand, &cmds[i]))

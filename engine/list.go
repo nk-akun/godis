@@ -284,6 +284,7 @@ func LPushCommand(c *Client, s *Server) {
 func RPushCommand(c *Client, s *Server) {
 	if c.Argc < 3 {
 		addReplyError(c, "(error) ERR wrong number of arguments for 'rpush' command")
+		return
 	}
 	key := c.Argv[1]
 	value := c.Db.Dt.Get(key)

@@ -405,6 +405,7 @@ func (d *Dict) stateLable() uint32 {
 func SetCommand(c *Client, s *Server) {
 	if c.Argc != 3 {
 		addReplyError(c, "(error) ERR wrong number of arguments for 'set' command")
+		return
 	}
 
 	key := c.Argv[1]
@@ -420,6 +421,7 @@ func SetCommand(c *Client, s *Server) {
 func GetCommand(c *Client, s *Server) {
 	if c.Argc != 2 {
 		addReplyError(c, "(error) ERR wrong number of arguments for 'get' command")
+		return
 	}
 
 	key := c.Argv[1]
@@ -429,4 +431,29 @@ func GetCommand(c *Client, s *Server) {
 		return
 	}
 	addReplyStatus(c, *(value.Ptr.(*Sdshdr).SdsGetString()))
+}
+
+// IncrCommand ...
+func IncrCommand(c *Client, s *Server) {
+	if c.Argc != 2 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'incr' command")
+		return
+	}
+
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		value = NewObject(OBJSDS, SdsNewString("0"))
+	} else {
+		c.Db.Dt.Delete(key)
+	}
+	num, err := strconv.ParseInt(*(value.Ptr.(*Sdshdr).SdsGetString()), 10, 64)
+	if err != nil {
+		addReplyStatus(c, "(error) ERR value is not an integer or out of range")
+		return
+	}
+	num++
+	value = NewObject(OBJSDS, SdsNewString(strconv.FormatInt(num, 10)))
+	c.Db.Dt.Add(key, value)
+	addReplyInt(c, num)
 }

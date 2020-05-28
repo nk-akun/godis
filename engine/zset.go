@@ -1,7 +1,10 @@
 package godis
 
 import (
+	"bytes"
+	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -15,6 +18,7 @@ type ZskipList struct {
 	tail   *ZskipListNode
 	length uint32
 	level  int
+	dt     *Dict
 }
 
 // ZskipListNode ...
@@ -50,6 +54,11 @@ func NewZsl() *ZskipList {
 		zsl.header.level[i].forward = nil
 		zsl.header.level[i].span = 0
 	}
+	df := &DictFunc{
+		calHash:    CalHashCommon,
+		keyCompare: CompareValueCommon,
+	}
+	zsl.dt = NewDict(df)
 	return zsl
 }
 
@@ -85,7 +94,7 @@ func (zsl *ZskipList) Insert(score float64, value *Sdshdr) *ZskipListNode {
 			dis[i] += p.level[i].span
 			p = p.level[i].forward
 		}
-		borders[i] = p.level[i].forward
+		borders[i] = p
 	}
 
 	level := zslRandomLevel()
@@ -126,7 +135,7 @@ func (zsl *ZskipList) Delete(score float64, value *Sdshdr) {
 	borders := make([]*ZskipListNode, ZSL_MAX_LEVEL)
 	p := zsl.header
 
-	for i := zsl.level; i >= 0; i-- {
+	for i := zsl.level - 1; i >= 0; i-- {
 		for p.level[i].forward != nil && (p.level[i].forward.score < score || (p.level[i].forward.score == score && SdsCmp(p.level[i].forward.value, value) == -1)) {
 			p = p.level[i].forward
 		}
@@ -165,7 +174,7 @@ func (zsl *ZskipList) Update(value *Sdshdr, curScore float64, newScore float64) 
 	borders := make([]*ZskipListNode, ZSL_MAX_LEVEL)
 	p := zsl.header
 
-	for i := zsl.level; i >= 0; i-- {
+	for i := zsl.level - 1; i >= 0; i-- {
 		for p.level[i].forward != nil && (p.level[i].forward.score < curScore || (p.level[i].forward.score == curScore && SdsCmp(p.level[i].forward.value, value) == -1)) {
 			p = p.level[i].forward
 		}
@@ -334,4 +343,168 @@ func (zsl *ZskipList) GetElementByRank(rank uint32) *ZskipListNode {
 		}
 	}
 	return nil
+}
+
+// ZaddCommand ...
+func ZaddCommand(c *Client, s *Server) {
+	if c.Argc < 4 || (c.Argc&1) == 1 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'zadd' command")
+		return
+	}
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		value = NewObject(OBJZset, NewZsl())
+		c.Db.Dt.Add(key, value)
+	}
+
+	zset := value.Ptr.(*ZskipList)
+	for i := 2; i < c.Argc; i++ {
+		scStr := c.Argv[i].Ptr.(string)
+		score, err := strconv.ParseFloat(scStr, 64)
+		if err != nil {
+			addReplyError(c, "(error) ERR value is not a valid float")
+			return
+		}
+
+		member := c.Argv[i+1].Ptr.(string)
+		i++
+		key = NewObject(OBJSDS, SdsNewString(member))
+		if o := zset.dt.Get(key); o != nil {
+			curScore, _ := strconv.ParseFloat(*(o.Ptr.(*Sdshdr).SdsGetString()), 64)
+			zset.Update(SdsNewString(member), curScore, score)
+			zset.dt.Delete(key)
+			zset.dt.Add(key, NewObject(OBJSDS, SdsNewString(scStr)))
+			continue
+		}
+		zset.Insert(score, SdsNewString(member))
+		zset.dt.Add(key, NewObject(OBJSDS, SdsNewString(scStr)))
+	}
+	addReplyInt(c, int64((c.Argc-2)/2))
+}
+
+// ZscoreCommand ...
+func ZscoreCommand(c *Client, s *Server) {
+	if c.Argc != 3 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'zscore' command")
+		return
+	}
+
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+
+	zset := value.Ptr.(*ZskipList)
+	member := c.Argv[2].Ptr.(string)
+	key = NewObject(OBJSDS, SdsNewString(member))
+	value = zset.dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+
+	addReplyStatus(c, *(value.Ptr.(*Sdshdr).SdsGetString()))
+}
+
+// ZrangeCommand ...
+func ZrangeCommand(c *Client, s *Server) {
+	if c.Argc != 4 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'zrange' command")
+		return
+	}
+
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+	zset := value.Ptr.(*ZskipList)
+	left, err := strconv.Atoi(c.Argv[2].Ptr.(string))
+	if err != nil {
+		addReplyStatus(c, "(error) ERR value is not an integer or out of range")
+		return
+	}
+	right, err := strconv.Atoi(c.Argv[3].Ptr.(string))
+	if err != nil {
+		addReplyStatus(c, "(error) ERR value is not an integer or out of range")
+		return
+	}
+
+	b := bytes.Buffer{}
+	num := 0
+	for i := left; i <= right; i++ {
+		node := zset.GetElementByRank(uint32(i))
+		if node == nil {
+			break
+		}
+		num++
+		b.WriteString(fmt.Sprintf("%d) \"%s\" \"%f\"\n", num, *(node.value.SdsGetString()), node.score))
+	}
+	if num == 0 {
+		addReplyStatus(c, "(nil)")
+	} else {
+		addReplyStatus(c, b.String())
+	}
+}
+
+// ZrankCommand ...
+func ZrankCommand(c *Client, s *Server) {
+	if c.Argc != 3 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'zrank' command")
+		return
+	}
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+
+	zset := value.Ptr.(*ZskipList)
+	member := c.Argv[2].Ptr.(string)
+	key = NewObject(OBJSDS, SdsNewString(member))
+	value = zset.dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+
+	score, _ := strconv.ParseFloat(*(value.Ptr.(*Sdshdr).SdsGetString()), 64)
+	rank := zset.GetRank(score, SdsNewString(member))
+	addReplyInt(c, int64(rank))
+}
+
+// ZremCommand ...
+func ZremCommand(c *Client, s *Server) {
+	if c.Argc < 3 {
+		addReplyError(c, "(error) ERR wrong number of arguments for 'zrem' command")
+		return
+	}
+	key := c.Argv[1]
+	value := c.Db.Dt.Get(key)
+	if value == nil {
+		addReplyStatus(c, "(nil)")
+		return
+	}
+
+	zset := value.Ptr.(*ZskipList)
+
+	num := 0
+	for i := 2; i < c.Argc; i++ {
+		member := c.Argv[i].Ptr.(string)
+		key = NewObject(OBJSDS, SdsNewString(member))
+		value = zset.dt.Get(key)
+		if value == nil {
+			continue
+		}
+		num++
+		score, _ := strconv.ParseFloat(*(value.Ptr.(*Sdshdr).SdsGetString()), 64)
+		zset.dt.Delete(key)
+		zset.Delete(score, SdsNewString(member))
+	}
+	addReplyInt(c, int64(num))
 }
