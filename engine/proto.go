@@ -206,6 +206,12 @@ func NewDecoder(reader io.Reader) *Decoder {
 	return &Decoder{ByteReader: bufio2.NewReaderSize(reader, 2048)}
 }
 
+// DecodeFromBytes decode bytes
+func DecodeFromBytes(b []byte) (*EncodeData, error) {
+	d := NewDecoder(bytes.NewReader(b))
+	return d.decodeData()
+}
+
 // DecodeMultiBulks decode multibulks into several parts
 // for example,*3\r\n$3\r\nset\r\n$3\r\nnum\r\n$1\r\n5\r\n ---> set num 5
 func (d *Decoder) DecodeMultiBulks() ([]*EncodeData, error) {
