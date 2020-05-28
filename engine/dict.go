@@ -414,6 +414,7 @@ func SetCommand(c *Client, s *Server) {
 		c.Db.Dt.Delete(key)
 	}
 	c.Db.Dt.Add(key, NewObject(OBJSDS, SdsNewString(c.Argv[2].Ptr.(string))))
+	s.Dirty++
 	addReplyStatus(c, "OK")
 }
 
@@ -455,5 +456,6 @@ func IncrCommand(c *Client, s *Server) {
 	num++
 	value = NewObject(OBJSDS, SdsNewString(strconv.FormatInt(num, 10)))
 	c.Db.Dt.Add(key, value)
+	s.Dirty++
 	addReplyInt(c, num)
 }

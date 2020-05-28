@@ -277,6 +277,7 @@ func LPushCommand(c *Client, s *Server) {
 	for i := 2; i < c.Argc; i++ {
 		l.AddNodeHead(c.Argv[i])
 	}
+	s.Dirty++
 	addReplyInt(c, int64(c.Argc-2))
 }
 
@@ -297,6 +298,7 @@ func RPushCommand(c *Client, s *Server) {
 	for i := c.Argc - 1; i >= 2; i-- {
 		l.AddNodeTail(c.Argv[i])
 	}
+	s.Dirty++
 	addReplyInt(c, int64(c.Argc-2))
 }
 

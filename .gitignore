@@ -3,3 +3,4 @@ log/*
 test.cpp
 godis-server
 godis-client
+SCF/*

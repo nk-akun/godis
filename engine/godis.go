@@ -7,16 +7,21 @@ import (
 	"os"
 )
 
+const (
+	DefaultSCFFile = "./SCF/01.scf"
+)
+
 type cmdFunc func(c *Client, s *Server)
 
 // Client stores client info
 type Client struct {
-	Query   *Sdshdr
-	Command *GodisCommand
-	Argc    int
-	Argv    []*Object
-	Db      *GodisDB
-	Buf     *Sdshdr
+	Query       *Sdshdr
+	Command     *GodisCommand
+	Argc        int
+	Argv        []*Object
+	Db          *GodisDB
+	Buf         *Sdshdr
+	VirtualFlag bool
 }
 
 // GodisDB ...
@@ -28,13 +33,14 @@ type GodisDB struct {
 
 // Server stores server info
 type Server struct {
-	Db       []*GodisDB
-	DbNum    int
-	Port     int
-	Clients  int32
-	Pid      int
-	Commands *Dict
-	Dirty    int64
+	Db          []*GodisDB
+	DbNum       int
+	Port        int
+	Clients     int32
+	Pid         int
+	Commands    *Dict
+	Dirty       int64
+	SCFFileName string
 }
 
 // GodisCommand ...
@@ -52,6 +58,7 @@ func (s *Server) CreateClient() *Client {
 
 // InitServer ...
 func InitServer() *Server {
+	ParseConf()
 	s := new(Server)
 	s.DbNum = 8
 	s.Db = make([]*GodisDB, s.DbNum)
@@ -63,10 +70,27 @@ func InitServer() *Server {
 		keyCompare: CompareValueCommon,
 	}
 	s.Commands = NewDict(df)
-
+	s.SCFFileName = DefaultSCFFile
 	addCmdFuncs(s)
 
+	LoadData(s)
+
 	return s
+}
+
+// LoadData ...
+func LoadData(s *Server) {
+	c := s.CreateClient()
+	c.VirtualFlag = true
+	cmds := ReadSCF(s.SCFFileName)
+	for _, cmd := range cmds {
+		c.Query = SdsNewString(cmd)
+		err := c.TransClientContent()
+		if err != nil {
+			log.Errorf("process input buffer error:%+v", err)
+		}
+		s.ProcessCommand(c)
+	}
 }
 
 // InitDB ...
@@ -99,7 +123,11 @@ func (s *Server) ProcessCommand(c *Client) {
 }
 
 func process(c *Client, s *Server) {
+	dirty := s.Dirty
 	c.Command.Proc(c, s)
+	if dirty < s.Dirty && !c.VirtualFlag {
+		AppendToSCF(s.SCFFileName, *(c.Query.SdsGetString()))
+	}
 }
 
 // LookUpCommand return the cmd if name is a cmd

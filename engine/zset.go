@@ -380,6 +380,7 @@ func ZaddCommand(c *Client, s *Server) {
 		zset.Insert(score, SdsNewString(member))
 		zset.dt.Add(key, NewObject(OBJSDS, SdsNewString(scStr)))
 	}
+	s.Dirty++
 	addReplyInt(c, int64((c.Argc-2)/2))
 }
 
@@ -506,5 +507,6 @@ func ZremCommand(c *Client, s *Server) {
 		zset.dt.Delete(key)
 		zset.Delete(score, SdsNewString(member))
 	}
+	s.Dirty++
 	addReplyInt(c, int64(num))
 }

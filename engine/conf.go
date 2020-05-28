@@ -11,6 +11,7 @@ import (
 type GodisConfig struct {
 	OutputToTerminal bool
 	LogDir           string
+	SCFFileName      string
 	*viper.Viper
 }
 
@@ -37,6 +38,7 @@ func ParseConf() {
 
 	v.SetDefault("OutputToTerminal", true)
 	v.SetDefault("LogDir", "./log/")
+	v.SetDefault("SCFFile", "./SCF/")
 
 	godisConf = &GodisConfig{}
 	if err := v.Unmarshal(godisConf); err != nil {

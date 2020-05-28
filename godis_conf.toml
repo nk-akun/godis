@@ -1,2 +1,3 @@
 OutputToTerminal = true
 LogDir = "./log"
+SCF_FileName = "./SCF/01.scf"
