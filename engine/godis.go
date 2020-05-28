@@ -63,6 +63,9 @@ func InitServer() *Server {
 		keyCompare: CompareValueCommon,
 	}
 	s.Commands = NewDict(df)
+
+	addCmdFuncs(s)
+
 	return s
 }
 
@@ -101,7 +104,7 @@ func process(c *Client, s *Server) {
 
 // LookUpCommand return the cmd if name is a cmd
 func (s *Server) LookUpCommand(name string) *GodisCommand {
-	if v := s.Commands.Get(NewObject(OBJString, name)); v != nil {
+	if v := s.Commands.Get(NewObject(OBJSDS, SdsNewString(name))); v != nil {
 		cmd, ok := v.Ptr.(*GodisCommand)
 		if !ok {
 			return nil
@@ -162,5 +165,29 @@ func addReplyError(c *Client, v string) {
 func addReply(c *Client, e *EncodeData) {
 	if s, err := EncodeMultiBulk(e); err == nil {
 		c.Buf = SdsNewBuf(s)
+	}
+}
+
+func addCmdFuncs(s *Server) {
+	cmds := []GodisCommand{
+		GodisCommand{
+			Name: SdsNewString("lpush"),
+			Proc: LPushCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("rpush"),
+			Proc: RPushCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("llen"),
+			Proc: LLenCommand,
+		},
+		GodisCommand{
+			Name: SdsNewString("lrange"),
+			Proc: LRangeCommand,
+		},
+	}
+	for i := range cmds {
+		s.Commands.Add(NewObject(OBJSDS, cmds[i].Name), NewObject(OBJCommand, &cmds[i]))
 	}
 }

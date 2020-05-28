@@ -115,7 +115,10 @@ func (d *Dict) Add(key *Object, value *Object) int {
 // Get return value by key or nil if can't find the node
 func (d *Dict) Get(key *Object) *Object {
 	node := d.Search(key)
-	return node.value
+	if node != nil {
+		return node.value
+	}
+	return nil
 }
 
 // Delete delete node with given key

@@ -303,6 +303,7 @@ func RPushCommand(c *Client, s *Server) {
 func LRangeCommand(c *Client, s *Server) {
 	if c.Argc != 4 {
 		addReplyError(c, "(error) ERR wrong number of arguments for 'lrange' command")
+		return
 	}
 
 	key := c.Argv[1]

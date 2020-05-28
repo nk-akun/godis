@@ -6,9 +6,9 @@ import "fmt"
 func TestSds() {
 
 	str := "abcdefse"
-	s1 := SdsNewString(&str)
+	s1 := SdsNewString(str)
 	str = "abcdefs"
-	s2 := SdsNewString(&str)
+	s2 := SdsNewString(str)
 
 	//cmp
 	fmt.Println(SdsCmp(s1, s2))

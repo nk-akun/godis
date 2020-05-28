@@ -40,6 +40,7 @@ func handle(conn net.Conn) {
 		err := client.ReadClientContent(conn)
 		if err != nil {
 			engine.GetGodisLogger().Errorf("read query content error:%+v", err)
+			return
 		}
 		err = client.TransClientContent()
 		if err != nil {
@@ -51,9 +52,5 @@ func handle(conn net.Conn) {
 }
 
 func responseClient(conn net.Conn, c *engine.Client) {
-	ans := ""
-	for _, t := range c.Argv {
-		ans += t.Ptr.(string)
-	}
-	conn.Write([]byte(ans))
+	conn.Write([]byte(*c.Buf.SdsGetString()))
 }

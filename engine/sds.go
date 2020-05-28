@@ -1,6 +1,8 @@
 package godis
 
-import "github.com/nk-akun/godis/engine/util"
+import (
+	"github.com/nk-akun/godis/engine/util"
+)
 
 // Sdshdr stores string aims to match the characteristics of godis
 type Sdshdr struct {
@@ -10,12 +12,12 @@ type Sdshdr struct {
 }
 
 // SdsNewString return a new Sdshdr with default capacity 20
-func SdsNewString(str *string) *Sdshdr {
-	l := len(*str)
+func SdsNewString(str string) *Sdshdr {
+	l := len(str)
 	return &Sdshdr{
 		len: l,
 		cap: l,
-		buf: []byte(*str),
+		buf: []byte(str),
 	}
 }
 
